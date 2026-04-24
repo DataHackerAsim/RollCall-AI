@@ -90,8 +90,7 @@ fusion window, giving immediate feedback to the operator instead of a frozen spi
 
 **Engineering**
 - Configuration via environment variables (`.env.example` documents every knob).
-- Production-hardening (HSTS, secure cookies, SSL redirect) auto-engages when
-  `DEBUG=False`.
+- Production-hardening (HSTS, secure cookies, SSL redirect) auto-engages when `DEBUG=False`.
 - Real test suite (~25 cases) covering model invariants, pure helpers, auth guards, and
   regressions.
 
@@ -99,29 +98,31 @@ fusion window, giving immediate feedback to the operator instead of a frozen spi
 
 ## Architecture
 
-┌───────────────┐     ┌──────────────────┐     ┌───────────────────┐
-│ Classroom cam │────▶│  RTSP ingest     │────▶│  RetinaFace       │
-│ (RTSP / IP)   │     │  (OpenCV MJPEG)  │     │  face detection   │
-└───────────────┘     └──────────────────┘     └────────┬──────────┘
-│  N frames
-▼
-┌──────────────────────────┐          ┌────────────────────────────┐
-│  Per-student reference   │          │  ArcFace dual-path embed   │
-│  embeddings  (.npy)      │◀────────▶│  tight crop + bright-norm  │
-│  thread-safe dict        │  cosine  │  margin crop + CLAHE       │
-└──────────┬───────────────┘          └─────────────┬──────────────┘
-│                                        │ max sim
-│                                        ▼
-│                         ┌──────────────────────────────┐
-│                         │  Multi-frame fusion (N=5)    │
-│                         │  threshold + tie-break       │
-│                         └──────────────┬───────────────┘
-│                                        │
-▼                                        ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  Django backend — AttendanceRecord rows, per-class CSV exports,  │
-│  Face Manager identity-correction UI, roster + override admin    │
-└──────────────────────────────────────────────────────────────────┘
+```
+ ┌───────────────┐     ┌──────────────────┐     ┌───────────────────┐
+ │ Classroom cam │────▶│  RTSP ingest     │────▶│  RetinaFace       │
+ │ (RTSP / IP)   │     │  (OpenCV MJPEG)  │     │  face detection   │
+ └───────────────┘     └──────────────────┘     └────────┬──────────┘
+                                                          │  N frames
+                                                          ▼
+   ┌──────────────────────────┐          ┌────────────────────────────┐
+   │  Per-student reference   │          │  ArcFace dual-path embed   │
+   │  embeddings  (.npy)      │◀────────▶│  tight crop + bright-norm  │
+   │  thread-safe dict        │  cosine  │  margin crop + CLAHE       │
+   └──────────┬───────────────┘          └─────────────┬──────────────┘
+              │                                         │ max sim
+              │                                         ▼
+              │                          ┌──────────────────────────────┐
+              │                          │  Multi-frame fusion (N=5)    │
+              │                          │  threshold + tie-break       │
+              │                          └──────────────┬───────────────┘
+              │                                         │
+              ▼                                         ▼
+   ┌──────────────────────────────────────────────────────────────────┐
+   │  Django backend — AttendanceRecord rows, per-class CSV exports,  │
+   │  Face Manager identity-correction UI, roster + override admin    │
+   └──────────────────────────────────────────────────────────────────┘
+```
 
 **Read these files first** if you want to understand the codebase:
 
@@ -175,8 +176,7 @@ Open **http://localhost:8000/** and sign in.
    python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 ```
    Paste it into `.env` as `DJANGO_SECRET_KEY=...`
-2. **Set `DJANGO_DEBUG=false`** before exposing the server to anything outside
-   `localhost`.
+2. **Set `DJANGO_DEBUG=false`** before exposing the server to anything outside `localhost`.
 3. **Create at least one `Teacher`, `Course`, `Batch`, `Section`, `Class`** via `/admin/`
    (or upload a roster CSV — see below).
 4. **Enroll face references** via the **Face Manager** UI
@@ -204,6 +204,11 @@ Open **http://localhost:8000/** and sign in.
 
 ### Roster CSV format
 
+```
+registration_id,first_name,last_name,batch_code,section,email,embedding_file,images_folder
+CS-0001,Ada,Lovelace,BCS-2024,A,ada@example.edu,Ada_Lovelace_embeddings.npy,/path/to/ref_photos/ada
+```
+
 Missing batches and sections are auto-created on first import.
 
 ### Tuning recognition
@@ -221,6 +226,9 @@ Every knob is an env var (see [`.env.example`](.env.example)):
 ---
 
 ## Project layout
+
+```
+.
 ├── manage.py
 ├── README.md
 ├── LICENSE
@@ -240,18 +248,19 @@ Every knob is an env var (see [`.env.example`](.env.example)):
 │   └── screenshots/                    # README screenshots
 │
 └── Attendance/                         # main app
-├── apps.py                         # background model warm-up on boot
-├── models.py                       # domain models (10)
-├── admin.py                        # full admin registrations
-├── views.py                        # all endpoints + ML wiring
-├── pipeline.py                     # clustering + retraining for Face Manager
-├── urls.py
-├── tests.py                        # ~25 cases
-├── migrations/
-├── Models/                         # per-student .npy embeddings (gitignored)
-│   └── README.md                   # how to populate this dir
-├── templates/Attendance/           # login, dashboard, attendance, face_manager
-└── static/Attendance/              # CSS + JS for the SPA-ish UIs
+    ├── apps.py                         # background model warm-up on boot
+    ├── models.py                       # domain models (10)
+    ├── admin.py                        # full admin registrations
+    ├── views.py                        # all endpoints + ML wiring
+    ├── pipeline.py                     # clustering + retraining for Face Manager
+    ├── urls.py
+    ├── tests.py                        # ~25 cases
+    ├── migrations/
+    ├── Models/                         # per-student .npy embeddings (gitignored)
+    │   └── README.md                   # how to populate this dir
+    ├── templates/Attendance/           # login, dashboard, attendance, face_manager
+    └── static/Attendance/              # CSS + JS for the SPA-ish UIs
+```
 
 ---
 
@@ -356,15 +365,3 @@ Bug reports and feature requests: open an issue.
 <div align="center">
 <sub>If this project saves you time, a ⭐ on GitHub is the cheapest way to say thanks.</sub>
 </div>
-
-
-
-
-
-
-
-
-
-
-
-
